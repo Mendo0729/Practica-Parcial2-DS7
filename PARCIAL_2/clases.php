@@ -107,4 +107,70 @@ class GestorInventario {
         
         return max($ids);
     }
+
+    // Parte #6
+    // agregar($nuevoProducto) - Debe asignar un nuevo ID usando obtenerMaximoId() y guardar
+    public function agregar($nuevoProducto){
+        $nuevoId = $this->obtenerMaximoId() + 1;
+        $nuevoProducto['id'] = $nuevoId;
+        $this->productos[] = $nuevoProducto;
+        return $nuevoId; 
+    }
+
+    //eliminar($idProducto) - Debe retornar true si se eliminó, false si no se encontró
+    public function  eliminar($idProducto){
+        foreach ($this->productos as $index => $producto) {
+            if ($producto['id'] == $idProducto) {
+                unset($this->productos[$index]);
+                $this->productos = array_values($this->productos);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //actualizar($productoActualizado) - Debe retornar true si se actualizó, false si no se encontró
+    public function actualizar($productoActualizado){
+        foreach ($this->productos as $index => $producto) {
+            if ($producto['id'] == $productoActualizado['id']) {
+                $this->productos[$index] = $productoActualizado;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //cambiarEstado($idProducto, $estadoNuevo) - Debe retornar true si se cambió, false si no se encontró
+    public function cambiarEstado($idProducto, $estadoNuevo){
+         foreach ($this->productos as &$producto) {
+            if ($producto['id'] == $idProducto) {
+                $producto['estado'] = $estadoNuevo;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //filtrarPorEstado($estadoBuscado) - Debe retornar un arreglo con los productos filtrados (si $estadoBuscado está vacío, retornar todos)
+    public function filtrarPorEstado($estadoBuscado) {
+        if (empty($estadoBuscado)) {
+            return $this->productos;
+        }
+        return array_filter($this->productos, function($producto) use ($estadoBuscado) {
+            return strtolower($producto['estado']) == strtolower($estadoBuscado);
+        });
+    }
+
+    //obtenerPorId($idBuscado) - Debe retornar el producto encontrado o null si no existe
+    public function obtenerPorId($idBuscado){
+        foreach ($this->productos as $producto) {
+            if ($producto['id'] == $idBuscado) {
+                return $producto;
+            }
+        }
+        return null;
+    }
+
+
+
 }
