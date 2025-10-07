@@ -44,6 +44,87 @@ if ($operacion === 'ordenar') {
 
 }
 
+//Parte 7
+// Operación de edición
+
+if ($operacion === 'crear' || $operacion === 'modificar') {
+    $datosProducto = [
+        'nombre' => $_GET['nombre'] ?? '',
+        'descripcion' => $_GET['descripcion'] ?? '',
+        'estado' => $_GET['estado'] ?? 'disponible',
+        'stock' => isset($_GET['stock']) ? (int)$_GET['stock'] : 0,
+        'categoria' => $_GET['categoria'] ?? '',
+        'fechaIngreso' => date('Y-m-d'),
+    ];
+    
+    // Campos específicos por categoría
+    if ($datosProducto['categoria'] === 'electronico') {
+        $datosProducto['garantiaMeses'] = isset($_GET['garantiaMeses']) ? (int)$_GET['garantiaMeses'] : 0;
+    } elseif ($datosProducto['categoria'] === 'alimento') {
+        $datosProducto['fechaVencimiento'] = $_GET['fechaVencimiento'] ?? '';
+    } elseif ($datosProducto['categoria'] === 'ropa') {
+        $datosProducto['talla'] = $_GET['talla'] ?? '';
+    }
+
+    if ($operacion === 'crear') {
+        $nuevoId = $gestor->generarNuevoId();
+        $datosProducto['id'] = $nuevoId;
+        $nuevoProducto = new Producto($datosProducto);
+        $gestor->agregar($nuevoProducto);
+    } elseif ($operacion === 'modificar' && !empty($_GET['id'])) {
+        $idExistente = (int)$_GET['id'];
+        $datosProducto['id'] = $idExistente;
+        $productoModificado = new Producto($datosProducto);
+        $gestor->modificar($productoModificado);
+    }
+    
+    // Recargar la lista después de la operación
+    $listaProductos = $gestor->obtenerTodos();
+}
+
+//Operacion eliminar
+if ($operacion === 'eliminar' && !empty($_GET['id'])) {
+    $idEliminar = (int)$_GET['id'];
+    $gestor->eliminar($idEliminar);
+    $listaProductos = $gestor->obtenerTodos();
+}
+
+//Operacion cambiar estado
+if ($operacion === 'cambiar_estado' && !empty($_GET['id']) &&   !empty($_GET['nuevo_estado'])) {
+    $idCambiar = (int)$_GET['id'];
+    $nuevoEstado = $_GET['nuevo_estado'];
+    $gestor->cambiarEstado($idCambiar, $nuevoEstado);
+    $listaProductos = $gestor->obtenerTodos();
+}
+
+// Operacion editar
+if ($operacion === 'editar' && !empty($_GET['id'])) {   
+    $idEditar = (int)$_GET['id'];
+    $itemParaEditar = $gestor->obtenerPorId($idEditar);
+}
+
+//operacion ordenar
+if ($operacion === 'ordenar') {
+    $campoOrden = $_GET['ordenar'] ?? 'id';
+    $tipoOrden = $_GET['tipo'] ?? 'asc';
+
+    usort($listaProductos, function($a, $b) use ($campoOrden, $tipoOrden) {
+        if (!property_exists($a, $campoOrden) || !property_exists($b, $campoOrden)) {
+            return 0;
+        }
+
+        if ($a->$campoOrden == $b->$campoOrden) {
+            return 0;
+        }
+
+        if ($tipoOrden === 'asc') {
+            return ($a->$campoOrden < $b->$campoOrden) ? -1 : 1;
+        } else {
+            return ($a->$campoOrden > $b->$campoOrden) ? -1 : 1;
+        }
+    });
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
