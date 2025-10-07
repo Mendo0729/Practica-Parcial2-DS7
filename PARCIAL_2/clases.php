@@ -1,6 +1,11 @@
 <?php
 // Archivo: clases.php
 
+interface Inventariable {
+    public function obtenerInformacionInventario(): string;
+}
+
+
 class Producto {
     public $id;
     public $nombre;
@@ -17,6 +22,39 @@ class Producto {
             }
         }
     }
+}
+
+//clase ProductoElectronico
+class ProductoElectronico extends Producto{
+    private $garantiaMeses;
+
+    function obtenerInfomacion(){
+        return "Garantia: " . $this->garantiaMeses . " meses";
+    }
+
+}
+
+//clase ProductoAlimento
+class ProductoAlimento extends Producto{
+    //Agregar un atributo fechaVencimiento (cadena enformato fecha)
+    private $fechaVencimiento;
+
+    function obtenerInfomacion(){
+        return "Fecha de Vencimiento: " . $this->fechaVencimiento;
+    }
+
+}
+
+//clase ProductoRopa
+class ProductoRopa extends Producto{
+    //Agregar un atributo talla (cadena: 'XS', 'S', 'M', 'L', 'XL','XXL')
+    private $talla;
+
+    function obtenerInfomacion(){
+        return "Talla: " . $this->talla;
+    }
+
+
 }
 
 class GestorInventario {
