@@ -5,8 +5,8 @@ interface Inventariable {
     public function obtenerInformacionInventario(): string;
 }
 
-
-class Producto {
+// Clase abstracta Producto que implementa la interfaz
+abstract class Producto implements Inventariable {
     public $id;
     public $nombre;
     public $descripcion;
@@ -24,43 +24,39 @@ class Producto {
     }
 }
 
-//clase ProductoElectronico
-class ProductoElectronico extends Producto{
-    private $garantiaMeses;
+// Clase ProductoElectronico - hereda de Producto
+class ProductoElectronico extends Producto {
+    public $garantiaMeses;
 
-    function obtenerInfomacion(){
-        return "Garantia: " . $this->garantiaMeses . " meses";
+    public function obtenerInformacionInventario(): string {
+        return "Garantía: " . $this->garantiaMeses . " meses";
     }
-
 }
 
-//clase ProductoAlimento
-class ProductoAlimento extends Producto{
-    //Agregar un atributo fechaVencimiento (cadena enformato fecha)
-    private $fechaVencimiento;
+// Clase ProductoAlimento - hereda de Producto
+class ProductoAlimento extends Producto {
+    public $fechaVencimiento;
 
-    function obtenerInfomacion(){
+    public function obtenerInformacionInventario(): string {
         return "Fecha de Vencimiento: " . $this->fechaVencimiento;
     }
-
 }
 
-//clase ProductoRopa
-class ProductoRopa extends Producto{
-    //Agregar un atributo talla (cadena: 'XS', 'S', 'M', 'L', 'XL','XXL')
-    private $talla;
+// Clase ProductoRopa - hereda de Producto
+class ProductoRopa extends Producto {
+    public $talla;
 
-    function obtenerInfomacion(){
+    public function obtenerInformacionInventario(): string {
         return "Talla: " . $this->talla;
     }
-
-
 }
 
+// Clase GestorInventario
 class GestorInventario {
     private $items = [];
     private $rutaArchivo = 'productos.json';
 
+    // Obtiene todos los productos cargados
     public function obtenerTodos() {
         if (empty($this->items)) {
             $this->cargarDesdeArchivo();
@@ -68,6 +64,7 @@ class GestorInventario {
         return $this->items;
     }
 
+    // Carga productos desde el archivo JSON y crea instancias según categoría
     private function cargarDesdeArchivo() {
         if (!file_exists($this->rutaArchivo)) {
             return;
@@ -80,8 +77,26 @@ class GestorInventario {
             return;
         }
         
+        // Crear instancias de las clases hijas según la categoría
         foreach ($arrayDatos as $datos) {
-            $this->items[] = new Producto($datos);
+            $producto = null;
+            
+            switch ($datos['categoria']) {
+                case 'electronico':
+                    $producto = new ProductoElectronico($datos);
+                    break;
+                case 'alimento':
+                    $producto = new ProductoAlimento($datos);
+                    break;
+                case 'ropa':
+                    $producto = new ProductoRopa($datos);
+                    break;
+                default:
+                    // Si la categoría no es reconocida, se omite
+                    continue 2;
+            }
+            
+            $this->items[] = $producto;
         }
     }
 
