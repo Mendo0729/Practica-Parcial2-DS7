@@ -9,6 +9,19 @@ $gestor = new GestorInventario();
 $notificacion = '';
 $itemParaEditar = null;
 
+// Arreglos para mostrar valores legibles
+$estadosLegibles = [
+    'disponible' => 'Disponible',
+    'agotado' => 'Agotado',
+    'por_recibir' => 'Por Recibir'
+];
+
+$categoriasLegibles = [
+    'electronico' => 'Electrónico',
+    'alimento' => 'Alimento',
+    'ropa' => 'Ropa'
+];
+
 // Capturar parámetros de la URL
 $operacion = $_GET['operacion'] ?? 'listar';
 $campoOrden = $_GET['ordenar'] ?? 'id';
@@ -17,31 +30,119 @@ $filtroEstado = $_GET['estado'] ?? '';
 
 // Procesar las diferentes operaciones
 if ($operacion === 'crear' && !empty($_GET['nombre'])) {
-    $notificacion = "Producto agregado correctamente.";
+    // Capturar datos del formulario
+    $categoria = $_GET['categoria'];
+    
+    // Crear arreglo con datos básicos
+    $datos = [
+        'nombre' => $_GET['nombre'],
+        'descripcion' => $_GET['descripcion'],
+        'estado' => $_GET['estado'],
+        'stock' => intval($_GET['stock']),
+        'fechaIngreso' => date('Y-m-d'),
+        'categoria' => $categoria
+    ];
+    
+    // Agregar campos específicos según categoría
+    if ($categoria === 'electronico' && isset($_GET['garantiaMeses'])) {
+        $datos['garantiaMeses'] = intval($_GET['garantiaMeses']);
+        $producto = new ProductoElectronico($datos);
+    } elseif ($categoria === 'alimento' && isset($_GET['fechaVencimiento'])) {
+        $datos['fechaVencimiento'] = $_GET['fechaVencimiento'];
+        $producto = new ProductoAlimento($datos);
+    } elseif ($categoria === 'ropa' && isset($_GET['talla'])) {
+        $datos['talla'] = $_GET['talla'];
+        $producto = new ProductoRopa($datos);
+    } else {
+        $notificacion = "Error: Categoría no válida o falta información específica.";
+    }
+    
+    if (isset($producto)) {
+        $gestor->agregar($producto);
+        $notificacion = "Producto agregado correctamente.";
+    }
     
 } elseif ($operacion === 'modificar' && !empty($_GET['id'])) {
-    $notificacion = "Producto modificado correctamente.";
+    // Capturar datos del formulario
+    $categoria = $_GET['categoria'];
+    
+    // Crear arreglo con datos actualizados
+    $datos = [
+        'id' => intval($_GET['id']),
+        'nombre' => $_GET['nombre'],
+        'descripcion' => $_GET['descripcion'],
+        'estado' => $_GET['estado'],
+        'stock' => intval($_GET['stock']),
+        'fechaIngreso' => $_GET['fechaIngreso'] ?? date('Y-m-d'),
+        'categoria' => $categoria
+    ];
+    
+    // Agregar campos específicos según categoría
+    if ($categoria === 'electronico' && isset($_GET['garantiaMeses'])) {
+        $datos['garantiaMeses'] = intval($_GET['garantiaMeses']);
+        $producto = new ProductoElectronico($datos);
+    } elseif ($categoria === 'alimento' && isset($_GET['fechaVencimiento'])) {
+        $datos['fechaVencimiento'] = $_GET['fechaVencimiento'];
+        $producto = new ProductoAlimento($datos);
+    } elseif ($categoria === 'ropa' && isset($_GET['talla'])) {
+        $datos['talla'] = $_GET['talla'];
+        $producto = new ProductoRopa($datos);
+    }
+    
+    if (isset($producto)) {
+        if ($gestor->actualizar($producto)) {
+            $notificacion = "Producto modificado correctamente.";
+        } else {
+            $notificacion = "Error: No se pudo modificar el producto.";
+        }
+    }
     
 } elseif ($operacion === 'eliminar' && !empty($_GET['id'])) {
-    $notificacion = "Producto eliminado correctamente.";
+    $idEliminar = intval($_GET['id']);
+    if ($gestor->eliminar($idEliminar)) {
+        $notificacion = "Producto eliminado correctamente.";
+    } else {
+        $notificacion = "Error: No se pudo eliminar el producto.";
+    }
     
 } elseif ($operacion === 'cambiar_estado' && !empty($_GET['id']) && !empty($_GET['nuevo_estado'])) {
-    $notificacion = "Estado actualizado correctamente.";
+    $idCambiar = intval($_GET['id']);
+    $nuevoEstado = $_GET['nuevo_estado'];
+    if ($gestor->cambiarEstado($idCambiar, $nuevoEstado)) {
+        $notificacion = "Estado actualizado correctamente.";
+    } else {
+        $notificacion = "Error: No se pudo cambiar el estado.";
+    }
     
 } elseif ($operacion === 'editar' && !empty($_GET['id'])) {
-
+    $idEditar = intval($_GET['id']);
+    $itemParaEditar = $gestor->obtenerPorId($idEditar);
 }
 
 // Obtener productos (con o sin filtro)
-if ($operacion === 'filtrar' && !empty($filtroEstado)) {
-    $listaProductos = $gestor->obtenerTodos(); // Temporal, cambiar por filtro
+if ($operacion === 'filtrar') {
+    $listaProductos = $gestor->filtrarPorEstado($filtroEstado);
 } else {
     $listaProductos = $gestor->obtenerTodos();
 }
 
 // Ordenar productos
 if ($operacion === 'ordenar') {
-
+    usort($listaProductos, function($a, $b) use ($campoOrden, $tipoOrden) {
+        $valorA = $a->$campoOrden ?? '';
+        $valorB = $b->$campoOrden ?? '';
+        
+        // Comparación
+        if ($valorA == $valorB) {
+            return 0;
+        }
+        
+        if ($tipoOrden === 'asc') {
+            return ($valorA < $valorB) ? -1 : 1;
+        } else {
+            return ($valorA > $valorB) ? -1 : 1;
+        }
+    });
 }
 
 ?>
@@ -77,6 +178,7 @@ if ($operacion === 'ordenar') {
                     <input type="hidden" name="operacion" value="<?php echo $itemParaEditar ? 'modificar' : 'crear'; ?>">
                     <?php if ($itemParaEditar): ?>
                         <input type="hidden" name="id" value="<?php echo $itemParaEditar->id; ?>">
+                        <input type="hidden" name="fechaIngreso" value="<?php echo $itemParaEditar->fechaIngreso; ?>">
                     <?php endif; ?>
                     
                     <div class="row g-3">
@@ -102,18 +204,24 @@ if ($operacion === 'ordenar') {
                             <label class="form-label">Categoría</label>
                             <select class="form-select" name="categoria" id="selectorCategoria" required>
                                 <option value="">-- Seleccionar --</option>
-                                <option value="electronico" <?php echo ($itemParaEditar && $itemParaEditar->categoria == 'electronico') ? 'selected' : ''; ?>>Electrónico</option>
-                                <option value="alimento" <?php echo ($itemParaEditar && $itemParaEditar->categoria == 'alimento') ? 'selected' : ''; ?>>Alimento</option>
-                                <option value="ropa" <?php echo ($itemParaEditar && $itemParaEditar->categoria == 'ropa') ? 'selected' : ''; ?>>Ropa</option>
+                                <?php foreach ($categoriasLegibles as $valor => $texto): ?>
+                                    <option value="<?php echo $valor; ?>" 
+                                        <?php echo ($itemParaEditar && $itemParaEditar->categoria == $valor) ? 'selected' : ''; ?>>
+                                        <?php echo $texto; ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         
                         <div class="col-md-4">
                             <label class="form-label">Estado</label>
                             <select class="form-select" name="estado" required>
-                                <option value="disponible" <?php echo ($itemParaEditar && $itemParaEditar->estado == 'disponible') ? 'selected' : ''; ?>>Disponible</option>
-                                <option value="agotado" <?php echo ($itemParaEditar && $itemParaEditar->estado == 'agotado') ? 'selected' : ''; ?>>Agotado</option>
-                                <option value="por_recibir" <?php echo ($itemParaEditar && $itemParaEditar->estado == 'por_recibir') ? 'selected' : ''; ?>>Por Recibir</option>
+                                <?php foreach ($estadosLegibles as $valor => $texto): ?>
+                                    <option value="<?php echo $valor; ?>" 
+                                        <?php echo ($itemParaEditar && $itemParaEditar->estado == $valor) ? 'selected' : ''; ?>>
+                                        <?php echo $texto; ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
 
@@ -174,9 +282,11 @@ if ($operacion === 'ordenar') {
                         <label class="form-label">Filtrar por Estado:</label>
                         <select name="estado" class="form-select">
                             <option value="">Todos</option>
-                            <option value="disponible" <?php echo $filtroEstado == 'disponible' ? 'selected' : ''; ?>>Disponible</option>
-                            <option value="agotado" <?php echo $filtroEstado == 'agotado' ? 'selected' : ''; ?>>Agotado</option>
-                            <option value="por_recibir" <?php echo $filtroEstado == 'por_recibir' ? 'selected' : ''; ?>>Por Recibir</option>
+                            <?php foreach ($estadosLegibles as $valor => $texto): ?>
+                                <option value="<?php echo $valor; ?>" <?php echo $filtroEstado == $valor ? 'selected' : ''; ?>>
+                                    <?php echo $texto; ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-auto d-flex align-items-end">
@@ -236,13 +346,14 @@ if ($operacion === 'ordenar') {
                                         Fecha Ingreso <?php echo ($campoOrden == 'fechaIngreso') ? ($tipoOrden == 'asc' ? '▲' : '▼') : ''; ?>
                                     </a>
                                 </th>
+                                <th>Información de Inventario</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($listaProductos)): ?>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted">
+                                    <td colspan="9" class="text-center text-muted">
                                         <i class="fas fa-inbox fa-3x mb-2"></i>
                                         <p>No hay productos registrados</p>
                                     </td>
@@ -263,12 +374,13 @@ if ($operacion === 'ordenar') {
                                             };
                                             ?>
                                             <span class="badge bg-<?php echo $badgeClass; ?>">
-                                                <?php echo htmlspecialchars($item->estado); ?>
+                                                <?php echo htmlspecialchars($estadosLegibles[$item->estado] ?? $item->estado); ?>
                                             </span>
                                         </td>
                                         <td><?php echo htmlspecialchars($item->stock); ?></td>
-                                        <td><?php echo htmlspecialchars($item->categoria); ?></td>
+                                        <td><?php echo htmlspecialchars($categoriasLegibles[$item->categoria] ?? $item->categoria); ?></td>
                                         <td><?php echo htmlspecialchars($item->fechaIngreso); ?></td>
+                                        <td><?php echo htmlspecialchars($item->obtenerInformacionInventario()); ?></td>
                                         <td class="text-center">
                                             <div class="btn-group btn-group-sm" role="group">
                                                 <a href="?operacion=editar&id=<?php echo $item->id; ?>" 
@@ -288,21 +400,13 @@ if ($operacion === 'ordenar') {
                                                     <i class="fas fa-exchange-alt"></i>
                                                 </button>
                                                 <ul class="dropdown-menu">
-                                                    <li>
-                                                        <a class="dropdown-item" href="?operacion=cambiar_estado&id=<?php echo $item->id; ?>&nuevo_estado=disponible">
-                                                            <i class="fas fa-check-circle text-success"></i> Disponible
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item" href="?operacion=cambiar_estado&id=<?php echo $item->id; ?>&nuevo_estado=agotado">
-                                                            <i class="fas fa-times-circle text-danger"></i> Agotado
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a class="dropdown-item" href="?operacion=cambiar_estado&id=<?php echo $item->id; ?>&nuevo_estado=por_recibir">
-                                                            <i class="fas fa-clock text-warning"></i> Por Recibir
-                                                        </a>
-                                                    </li>
+                                                    <?php foreach ($estadosLegibles as $valor => $texto): ?>
+                                                        <li>
+                                                            <a class="dropdown-item" href="?operacion=cambiar_estado&id=<?php echo $item->id; ?>&nuevo_estado=<?php echo $valor; ?>">
+                                                                <i class="fas fa-circle text-<?php echo $badgeClass; ?>"></i> <?php echo $texto; ?>
+                                                            </a>
+                                                        </li>
+                                                    <?php endforeach; ?>
                                                 </ul>
                                             </div>
                                         </td>
